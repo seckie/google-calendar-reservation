@@ -8,8 +8,11 @@ Apps Script (Web App) + Google Sheets + Google Calendar で動作します。
 ## ファイル構成
 
 ```
-Code.gs     # サーバーサイドロジック
-index.html  # 予約フォームUI
+Code.gs                          # サーバーサイドロジック
+index.html                       # 予約フォームUI
+appsscript.json                  # Apps Script マニフェスト
+.clasp.json                      # clasp プロジェクト設定
+.github/workflows/deploy.yml     # GitHub Actions 自動デプロイ
 ```
 
 ---
@@ -43,33 +46,94 @@ A列（キー）とB列（値）で設定を記入します。
 
 ---
 
-### 2. Apps Script プロジェクトを作成する
+### 2. clasp をインストールする（ローカルで一度だけ）
 
-1. スプレッドシートのメニューから **拡張機能 → Apps Script** を開く
-2. `Code.gs` の内容を貼り付ける
-3. 左サイドバーの「+」ファイル追加 → **HTML** → `index` という名前で作成
-4. `index.html` の内容を貼り付ける
-5. **保存**（Ctrl+S / Cmd+S）
-
----
-
-### 3. ウェブアプリとしてデプロイする
-
-1. 右上の **「デプロイ」→「新しいデプロイ」** をクリック
-2. 種類: **ウェブアプリ** を選択
-3. 設定:
-   - **次のユーザーとして実行:** 自分（スプレッドシートのオーナー）
-   - **アクセスできるユーザー:** 全員（匿名ユーザーを含む）
-4. **「デプロイ」** をクリック
-5. 権限の確認画面で許可する
-6. 発行された **ウェブアプリのURL** を予約ユーザーに共有する
+```bash
+npm install -g @google/clasp
+clasp login   # ブラウザでGoogleアカウント認証 → ~/.clasprc.json が生成される
+```
 
 ---
 
-### 4. Google カレンダーの共有設定
+### 3. GAS プロジェクトを用意する
+
+#### パターンA: スプレッドシートにバインドされた既存プロジェクトを使う（推奨）
+
+スプレッドシートのメニューから **拡張機能 → Apps Script** を開き、
+エディタのURL `https://script.google.com/d/<SCRIPT_ID>/edit` から Script ID を取得します。
+
+`.clasp.json` に記入します。
+
+```json
+{ "scriptId": "取得したScript ID", "rootDir": "." }
+```
+
+#### パターンB: clasp で新規スタンドアロンプロジェクトを作成する
+
+```bash
+clasp create --type webapp --title "予約システム"
+# → .clasp.json が自動生成される
+```
+
+> **注意:** パターンBの場合、スプレッドシートとの紐付けは Apps Script エディタで手動設定が必要です。
+> スプレッドシートを使うならパターンAを推奨します。
+
+---
+
+### 4. 初回デプロイ（Web App URL を確定させる）
+
+```bash
+clasp push                        # コードをGASにアップロード
+clasp deploy --description "initial"   # Web App として公開
+
+clasp deployments                 # Deployment ID を確認・控える
+# → AKfycb... のような文字列
+```
+
+> 初回のみ、GAS エディタの **「デプロイ」→「デプロイを管理」** で
+> 権限の確認（スプレッドシート・カレンダー・Gmail へのアクセス）を許可してください。
+
+---
+
+### 5. GitHub Secrets を登録する
+
+GitHub リポジトリの **Settings → Secrets and variables → Actions** に以下を登録します。
+
+| Secret 名 | 値の取得方法 |
+|---|---|
+| `CLASP_TOKEN` | `cat ~/.clasprc.json` の出力内容をそのまま貼り付ける |
+| `CLASP_DEPLOYMENT_ID` | `clasp deployments` で確認した `AKfy...` の文字列 |
+
+> `CLASP_TOKEN` は OAuth リフレッシュトークンを含みます。**git にはコミットしないでください**（`.gitignore` で除外済み）。
+
+---
+
+### 6. Google カレンダーの共有設定
 
 Apps Script がカレンダーにイベントを追加するには、
-スクリプトを実行するアカウントがそのカレンダーの **編集権限** を持つ必要があります。
+スクリプトを実行するアカウント（デプロイしたアカウント）が
+そのカレンダーの **編集権限** を持つ必要があります。
+
+---
+
+## 2回目以降の運用（自動デプロイ）
+
+`main` ブランチに push するだけで GitHub Actions が自動的にデプロイします。
+**Web App の URL は変わりません。**
+
+```bash
+# コードを編集して push するだけ
+git add .
+git commit -m "fix: ..."
+git push origin main   # ← GitHub Actions が clasp push + deploy を実行
+```
+
+### ローカルから手動デプロイする場合
+
+```bash
+clasp push
+clasp deploy --deploymentId AKfycb...   # 控えておいたDeployment IDを指定
+```
 
 ---
 

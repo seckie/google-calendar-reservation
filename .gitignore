@@ -1,0 +1,6 @@
+# clasp 認証情報（絶対にコミットしない）
+.clasprc.json
+
+# 環境依存
+node_modules/
+.env

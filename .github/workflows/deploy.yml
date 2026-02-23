@@ -1,0 +1,35 @@
+name: Deploy to Google Apps Script
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install clasp
+        run: npm install -g @google/clasp
+
+      # GitHub Secret に保存した ~/.clasprc.json の内容を復元する
+      - name: Restore clasp credentials
+        run: echo '${{ secrets.CLASP_TOKEN }}' > ~/.clasprc.json
+
+      # ローカルのコードを Apps Script プロジェクトへアップロード
+      - name: Push code
+        run: clasp push --force
+
+      # 既存のデプロイメントID（Web App URL）を使って更新
+      # 初回は clasp deploy で新規作成し、IDを Secret に登録する
+      - name: Deploy web app
+        run: clasp deploy --deploymentId "${{ secrets.CLASP_DEPLOYMENT_ID }}" --description "Deploy from GitHub Actions (${GITHUB_SHA::7})"
