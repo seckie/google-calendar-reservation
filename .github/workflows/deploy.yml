@@ -25,6 +25,12 @@ jobs:
       - name: Restore clasp credentials
         run: echo '${{ secrets.CLASP_TOKEN }}' > ~/.clasprc.json
 
+      # .clasp.example.json を .clasp.json にリネームし、scriptId を Secret の値で上書き
+      - name: Setup .clasp.json
+        run: |
+          cp .clasp.example.json .clasp.json
+          jq '.scriptId = "${{ secrets.CLASP_SCRIPT_ID }}"' .clasp.json > .clasp.json.tmp && mv .clasp.json.tmp .clasp.json
+
       # ローカルのコードを Apps Script プロジェクトへアップロード
       - name: Push code
         run: clasp push --force

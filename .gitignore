@@ -1,6 +1,12 @@
 # clasp 認証情報（絶対にコミットしない）
 .clasprc.json
 
+# Apps Script 設定
+.clasp.json
+
 # 環境依存
 node_modules/
 .env
+
+# Claude
+.claude/settings.local.json
